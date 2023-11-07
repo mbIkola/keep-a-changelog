@@ -185,16 +185,48 @@ changelog --latest-release
 > 0.3.1
 ```
 
+To generate new changelog entry with the current date as release date: 
+```sh 
+currentVersion=$(node -p "require('./package.json').version")
+echo currentVersion
+#> 3.29.3
+lastCommitMessage=$(git log -1 --oneline --pretty=format:%B)
+echo $lastCommitMessage
+#> TICKET-1234: My Awesome Feature Added
+changelog --tagNameFormat="[version]" --create $currentVersion --add-added $lastCommitMessage --release
+#> Updated file ./CHANGELOG.md
+git diff CHANGELOG.md
+
+#> diff --git a/CHANGELOG.md b/CHANGELOG.md
+#> index 718d2aa..7099f61 100644
+#> --- a/CHANGELOG.md
+#> +++ b/CHANGELOG.md
+#> @@ -4,6 +4,10 @@ All notable changes to this project will be documented in this file.
+#>  The format is based on [Keep a Changelog](http://keepachangelog.com/)
+#>  and this project adheres to [Semantic Versioning](http://semver.org/).
+#>  
+#> +## [3.29.3] - 2023-11-06
+#> +### Added
+#> +- TICKET-1234: My Awesome Feature Added.
+#> +
+#>  ## [3.29.2] - 2023-10-25
+```
+
 Available options:
 
-| Option             | Description                                                                                                                                                                                                    |
-| ------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `--format`         | The output format for the generated markdown. It can be `markdownlint` or `compact`. The default value is `compact`.                                                                                           |
-| `--file`           | The markdown file of the changelog. The default value is `CHANGELOG.md`.                                                                                                                                       |
-| `--url`            | The base url used to build the diff urls of the different releases. It is taken from the existing diff urls in the markdown. If no urls are found, try to catch it using the url of the git remote repository. |
-| `--https`          | Set to false to use `http` instead `https` in the url (`--https=false`).                                                                                                                                       |
-| `--init`           | Init a new empty changelog file.                                                                                                                                                                               |
-| `--latest-release` | Print the latest release version.                                                                                                                                                                              |
-| `--release`        | Updated the latest unreleased version with the current date. Use `--release=X.Y.Z` to set a number if the version doesn't have it.                                                                             |
-| `--create`         | Create a new Unreleased version. Use `--create=X.Y.Z` to specify a version number or just `--create` for a version without number.                                                                             |
-| `--quiet`          | Do not output error messages                                                                                                                                                                                   |
+| Option             | Description                                                                                                                                                                                                                                                            |
+|--------------------|------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `--format`         | The output format for the generated markdown. It can be `markdownlint` or `compact`. The default value is `compact`.                                                                                                                                                   |
+| `--file`           | The markdown file of the changelog. The default value is `CHANGELOG.md`.                                                                                                                                                                                               |
+| `--url`            | The base url used to build the diff urls of the different releases. It is taken from the existing diff urls in the markdown. If no urls are found, try to catch it using the url of the git remote repository.                                                         |
+| `--https`          | Set to false to use `http` instead `https` in the url (`--https=false`).                                                                                                                                                                                               |
+| `--init`           | Init a new empty changelog file.                                                                                                                                                                                                                                       |
+| `--latest-release` | Print the latest release version.                                                                                                                                                                                                                                      |
+| `--release`        | Updated the latest unreleased version with the current date. Use `--release=X.Y.Z` to set a number if the version doesn't have it.                                                                                                                                     |
+| `--create`         | Create a new Unreleased version. Use `--create=X.Y.Z` to specify a version number or just `--create` for a version without number.                                                                                                                                     |
+| `--add-added`      | Add "Added" changelog entry for created unreleased version. Must be used with "--create" flag.  |
+| `--add-[changeType]` | Add new changelog entry for created unrelease version. ChangeType is one of `changed`, `added`, `fixed`, `removed`, `security`, `deprecated` |
+| `--quiet`          | Do not output error messages                                                                                                                                                                                                                                           |
+| `--compareLink`    | The URL format for the generated compare links. Defaults to `[url]/compare/v[next]...v[prev]`, where `[url]` is placeholder for repository URL, `[next]` placeholder for version number of the release, `[prev]` - placeholder for version number of previous release. |
+| `--tagNameFormat`  | Format to be used for tagNames. Defaults to `v[version]`, where `[version]` is release version                                                                                                                                                                         |
+

@@ -5,6 +5,10 @@ import { Changelog, parser, Release } from "./mod.ts";
 import { parse as parseFlag } from "https://deno.land/std@0.189.0/flags/mod.ts";
 import { parse as parseIni } from "https://deno.land/x/ini@v2.1.0/mod.ts";
 
+
+const changeTypes = ["added", "fixed", "security", "deprecated", "changed", "removed"];
+const changeArgs = changeTypes.map(changeType => `add-${changeType}`);
+
 const argv = parseFlag(Deno.args, {
   default: {
     file: "CHANGELOG.md",
@@ -15,8 +19,15 @@ const argv = parseFlag(Deno.args, {
     https: true,
     quiet: false,
   },
-  string: ["file", "format", "url"],
+  string: ["file", "format", "url", "compareLink", "tagNameFormat"],
   boolean: ["https", "init", "latest-release", "quiet"],
+  collect: changeArgs
+});
+
+changeArgs.forEach(changeArg => {
+  if (argv[changeArg] && argv[changeArg].length > 0 && !argv.create ) {
+    console.warn( yellow(`WARN: --${changeArg} argument specified without "--create" flag. `));
+  }
 });
 
 const file = join(Deno.cwd(), argv.file);
@@ -48,6 +59,20 @@ try {
     Deno.exit(0);
   }
 
+  if (argv.create) {
+    const version = typeof argv.create === "string" ? argv.create : undefined;
+    const newRelease = new Release(version);
+    // argv['add-fixed'] -- collectable arg
+    // All Collectable arguments will be set to [] by default.
+    changeTypes.forEach( changeType => {
+        (argv[`add-${changeType}`] || []).forEach(changeEntry => {
+          newRelease[changeType](changeEntry);
+        });
+    });
+
+    changelog.addRelease(newRelease);
+  }
+
   if (argv.release) {
     const release = changelog.releases.find((release) => {
       if (release.date) {
@@ -72,11 +97,6 @@ try {
     }
   }
 
-  if (argv.create) {
-    const version = typeof argv.create === "string" ? argv.create : undefined;
-    changelog.addRelease(new Release(version));
-  }
-
   if (!changelog.url) {
     if (argv.url) {
       changelog.url = argv.url;
@@ -94,6 +114,33 @@ try {
         Deno.exit(1);
       }
     }
+  }
+  if ( argv.tagNameFormat ) {
+    changelog.tagNameBuilder = (release) => `${argv.tagNameFormat}`.replace(/\[version]/ig, release.version)
+  }
+
+  if(argv.compareLink) {
+    changelog.compareLinkBuilder = (function (previous, release) {
+
+      if (!previous) {
+        return `${this.url}/releases/tag/${this.tagName(release)}`;
+      }
+
+      if (!release.date || !release.version) {
+        return `${this.url}/compare/${this.tagName(previous)}...${this.head}`;
+      }
+
+      const replacements = {
+        '[url]': changelog.url,
+        '[next]': release.version,
+        '[prev]': previous.version
+      }
+
+      return argv.compareLink.replace(/\[URL]|\[NEXT]|\[PREV]/ig, (matched) => {
+        return replacements[`${matched}`.toLowerCase()] || matched
+      });
+
+    }).bind(changelog);
   }
 
   save(file, changelog);
@@ -127,6 +174,10 @@ function red(message: string) {
 
 function green(message: string) {
   return "\u001b[" + 32 + "m" + message + "\u001b[" + 39 + "m";
+}
+
+function yellow(message: string) {
+  return "\u001b[" + 33 + "m" + message + "\u001b[" + 39 + "m";
 }
 
 function getRemoteUrl(https = true) {
